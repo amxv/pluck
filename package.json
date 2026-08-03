@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/amxv/pluck.git"
   },
-  "homepage": "https://github.com/amxv/pluck#readme",
+  "homepage": "https://pluck-delta.vercel.app",
   "bugs": {
     "url": "https://github.com/amxv/pluck/issues"
   },

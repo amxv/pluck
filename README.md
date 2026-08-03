@@ -2,6 +2,8 @@
 
 Copy a folder from a GitHub repository into a local directory.
 
+Read the guides at [pluck-delta.vercel.app](https://pluck-delta.vercel.app).
+
 `pluck` accepts GitHub tree URLs, downloads the folder through the GitHub API,
 and writes it to `/tmp` by default. Private repositories work through
 `GH_TOKEN`, `GITHUB_TOKEN`, or the active `gh` account.
