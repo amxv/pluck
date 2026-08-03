@@ -9,7 +9,7 @@ const proofPoints = [
   {
     index: "01",
     title: "URL in, folder out",
-    body: "Paste a GitHub tree URL and get the folder, its nested files, and its executable bits on disk."
+    body: "Paste a GitHub tree or blob URL and get the folder or file, with executable bits preserved on disk."
   },
   {
     index: "02",
@@ -31,7 +31,7 @@ const proofPoints = [
 const workflows = [
   "Copy a skill, example, or config folder from a repository without cloning the whole thing.",
   "Drop shared conventions into /tmp while exploring a codebase or preparing an agent session.",
-  "Choose a destination root and let pluck preserve the source folder name for you.",
+  "Choose a destination root and let pluck preserve the source folder or file name for you.",
   "Install once with npm, then keep the terminal command close at hand."
 ];
 ---
@@ -47,7 +47,7 @@ const workflows = [
       <p class="section-label">A tiny GitHub extraction tool</p>
       <h1>GitHub gave you a URL. <em>pluck</em> gives you the folder.</h1>
       <p class="hero__lede">
-        Copy any folder from a GitHub tree URL into a local directory. No full clone,
+        Copy any folder or file from a GitHub tree or blob URL into a local directory. No full clone,
         no temporary archive, no ceremony between “I found it” and “it is here.”
       </p>
       <div class="hero__url-line">

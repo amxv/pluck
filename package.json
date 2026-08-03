@@ -1,7 +1,7 @@
 {
   "name": "@amxv/pluck",
   "version": "0.1.0",
-  "description": "Copy folders from GitHub repository URLs into a local directory",
+  "description": "Copy folders or files from GitHub repository URLs into a local directory",
   "license": "Apache-2.0",
   "author": "amxv",
   "repository": {

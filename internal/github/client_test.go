@@ -22,18 +22,139 @@ func TestParseFolderURL(t *testing.T) {
 	if source.Name() != "composition-patterns" {
 		t.Fatalf("unexpected folder name: %q", source.Name())
 	}
+	if source.isFile() {
+		t.Fatal("tree URL was parsed as a file")
+	}
 }
 
-func TestParseFolderURLRejectsNonFolderURLs(t *testing.T) {
+func TestParseFolderURLParsesFileURL(t *testing.T) {
+	source, err := ParseFolderURL("https://github.com/amxv/go-cli-template/blob/main/internal/app/app.go")
+	if err != nil {
+		t.Fatalf("ParseFolderURL returned error: %v", err)
+	}
+	if source.Owner != "amxv" || source.Repo != "go-cli-template" {
+		t.Fatalf("unexpected repository: %#v", source)
+	}
+	if !source.isFile() {
+		t.Fatal("blob URL was not parsed as a file")
+	}
+	if source.Name() != "app.go" {
+		t.Fatalf("unexpected file name: %q", source.Name())
+	}
+}
+
+func TestParseFolderURLRejectsUnsupportedURLs(t *testing.T) {
 	for _, rawURL := range []string{
 		"https://github.com/vercel-labs/agent-skills",
-		"https://github.com/vercel-labs/agent-skills/blob/main/README.md",
+		"https://github.com/vercel-labs/agent-skills/commit/main/README.md",
 		"http://github.com/vercel-labs/agent-skills/tree/main/skills",
 		"https://example.com/vercel-labs/agent-skills/tree/main/skills",
 	} {
 		if _, err := ParseFolderURL(rawURL); err == nil {
 			t.Errorf("expected %q to be rejected", rawURL)
 		}
+	}
+}
+
+func TestDownloadFile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/repos/acme/demo/commits/main":
+			_, _ = writer.Write([]byte(`{"sha":"commit-sha"}`))
+		case "/repos/acme/demo/git/trees/commit-sha":
+			_, _ = writer.Write([]byte(`{
+                "truncated": false,
+                "tree": [
+                    {"path":"internal/app/app.go","mode":"100755","type":"blob","sha":"app-sha"},
+                    {"path":"internal/app","mode":"040000","type":"tree","sha":"app-dir-sha"}
+                ]
+            }`))
+		case "/repos/acme/demo/git/blobs/app-sha":
+			writeBlobResponse(writer, []byte("package app\n"))
+		default:
+			http.NotFound(writer, request)
+		}
+	}))
+	defer server.Close()
+
+	client := &Client{
+		httpClient: server.Client(),
+		apiBaseURL: server.URL,
+		userAgent:  "pluck-test",
+	}
+	source, err := ParseFolderURL("https://github.com/acme/demo/blob/main/internal/app/app.go")
+	if err != nil {
+		t.Fatalf("ParseFolderURL returned error: %v", err)
+	}
+
+	result, err := client.Download(t.Context(), source, t.TempDir(), false)
+	if err != nil {
+		t.Fatalf("Download returned error: %v", err)
+	}
+	if result.FileCount != 1 {
+		t.Fatalf("expected 1 file, got %d", result.FileCount)
+	}
+	if filepath.Base(result.Target) != "app.go" {
+		t.Fatalf("expected app.go target, got %q", result.Target)
+	}
+
+	contents, err := os.ReadFile(result.Target)
+	if err != nil {
+		t.Fatalf("read extracted file: %v", err)
+	}
+	if string(contents) != "package app\n" {
+		t.Fatalf("unexpected file contents: %q", contents)
+	}
+	info, err := os.Stat(result.Target)
+	if err != nil {
+		t.Fatalf("stat extracted file: %v", err)
+	}
+	if info.Mode().Perm() != 0o755 {
+		t.Fatalf("expected executable mode, got %o", info.Mode().Perm())
+	}
+}
+
+func TestDownloadFileForceReplacesExistingDestination(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/repos/acme/demo/commits/main":
+			_, _ = writer.Write([]byte(`{"sha":"commit-sha"}`))
+		case "/repos/acme/demo/git/trees/commit-sha":
+			_, _ = writer.Write([]byte(`{
+                "truncated": false,
+                "tree": [{"path":"README.md","mode":"100644","type":"blob","sha":"readme-sha"}]
+            }`))
+		case "/repos/acme/demo/git/blobs/readme-sha":
+			writeBlobResponse(writer, []byte("new\n"))
+		default:
+			http.NotFound(writer, request)
+		}
+	}))
+	defer server.Close()
+
+	client := &Client{httpClient: server.Client(), apiBaseURL: server.URL}
+	source, err := ParseFolderURL("https://github.com/acme/demo/blob/main/README.md")
+	if err != nil {
+		t.Fatalf("ParseFolderURL returned error: %v", err)
+	}
+	root := t.TempDir()
+	target := filepath.Join(root, "README.md")
+	if err := os.WriteFile(target, []byte("old\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := client.Download(t.Context(), source, root, true)
+	if err != nil {
+		t.Fatalf("Download returned error: %v", err)
+	}
+	contents, err := os.ReadFile(result.Target)
+	if err != nil {
+		t.Fatalf("read replaced file: %v", err)
+	}
+	if string(contents) != "new\n" {
+		t.Fatalf("unexpected replaced contents: %q", contents)
 	}
 }
 

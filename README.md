@@ -1,11 +1,11 @@
 # pluck
 
-Copy a folder from a GitHub repository into a local directory.
+Copy a folder or file from a GitHub repository into a local directory.
 
 Read the guides at [pluck-delta.vercel.app](https://pluck-delta.vercel.app).
 
-`pluck` accepts GitHub tree URLs, downloads the folder through the GitHub API,
-and writes it to `/tmp` by default. Private repositories work through
+`pluck` accepts GitHub tree and blob URLs, downloads the requested source through
+the GitHub API, and writes it to `/tmp` by default. Private repositories work through
 `GH_TOKEN`, `GITHUB_TOKEN`, or the active `gh` account.
 
 ## Install
@@ -29,8 +29,16 @@ pluck https://github.com/vercel-labs/agent-skills/tree/main/skills/composition-p
 
 The example above creates `/tmp/composition-patterns`.
 
-Use `--output` or `-o` to choose the destination directory. The source folder
-name is appended to that path:
+Pass a GitHub blob URL to copy one file. The file name is appended to the output
+directory:
+
+```bash
+pluck https://github.com/amxv/go-cli-template/blob/main/internal/app/app.go
+# writes /tmp/app.go
+```
+
+Use `--output` or `-o` to choose the destination directory. The source name is
+appended to that path:
 
 ```bash
 pluck -o ./skills https://github.com/vercel-labs/agent-skills/tree/main/skills/composition-patterns

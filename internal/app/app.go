@@ -40,11 +40,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, client do
 	flags.Usage = func() { printRootHelp(stderr) }
 
 	var output string
-	flags.StringVar(&output, "output", "/tmp", "destination directory; the source folder name is appended")
+	flags.StringVar(&output, "output", "/tmp", "destination directory; the source name is appended")
 	flags.StringVar(&output, "o", "/tmp", "alias for --output")
 
 	var force bool
-	flags.BoolVar(&force, "force", false, "replace an existing extracted folder")
+	flags.BoolVar(&force, "force", false, "replace an existing extracted folder or file")
 	flags.BoolVar(&force, "f", false, "alias for --force")
 
 	if err := flags.Parse(args); err != nil {
@@ -52,7 +52,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer, client do
 	}
 	urls := flags.Args()
 	if len(urls) == 0 {
-		return errors.New("at least one GitHub folder URL is required (run `pluck --help`)")
+		return errors.New("at least one GitHub folder URL or file URL is required (run `pluck --help`)")
 	}
 	if strings.TrimSpace(output) == "" {
 		return errors.New("output directory cannot be empty")
@@ -107,10 +107,10 @@ func isHelpArg(value string) bool {
 
 func printRootHelp(w io.Writer) {
 	writeLines(w,
-		"pluck - copy a folder from a GitHub repository",
+		"pluck - copy a folder or file from a GitHub repository",
 		"",
 		"Usage:",
-		"  pluck [flags] <github-folder-url> [<github-folder-url> ...]",
+		"  pluck [flags] <github-url> [<github-url> ...]",
 		"",
 		"Flags:",
 		"  -o, --output PATH  destination directory (default: /tmp)",
@@ -118,11 +118,12 @@ func printRootHelp(w io.Writer) {
 		"      --version     print the installed version",
 		"  -h, --help         show this help menu",
 		"",
-		"The source folder name is appended to the destination directory.",
+		"The source folder or file name is appended to the destination directory.",
 		"GitHub URLs may point to public repositories or repositories available to gh.",
 		"",
 		"Examples:",
 		"  pluck https://github.com/vercel-labs/agent-skills/tree/main/skills/composition-patterns",
+		"  pluck https://github.com/amxv/go-cli-template/blob/main/internal/app/app.go",
 		"  pluck -o ./skills https://github.com/vercel-labs/agent-skills/tree/main/skills/composition-patterns",
 		"  pluck --force -o /tmp URL1 URL2",
 	)

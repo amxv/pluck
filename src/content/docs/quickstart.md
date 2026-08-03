@@ -1,9 +1,9 @@
 ---
 title: Quickstart
-description: Install pluck and copy your first GitHub folder.
+description: Install pluck and copy your first GitHub folder or file.
 order: 1
 category: Start
-summary: Go from a GitHub tree URL to a local folder in one command.
+summary: Go from a GitHub tree or blob URL to local files in one command.
 ---
 
 ## Install
@@ -45,3 +45,13 @@ pluck --output ./skills \
 ```
 
 The result is `./skills/composition-patterns`.
+
+## Copy one file
+
+Pass a GitHub blob URL when you only need an individual file:
+
+```bash
+pluck https://github.com/amxv/go-cli-template/blob/main/internal/app/app.go
+```
+
+This writes `/tmp/app.go`.

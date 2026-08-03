@@ -20,13 +20,22 @@ import (
 
 const defaultAPIBaseURL = "https://api.github.com"
 
-// Source identifies a folder URL on github.com. The path after /tree/ is
-// kept as segments so branch names containing slashes can be resolved.
+type sourceKind uint8
+
+const (
+	sourceFolder sourceKind = iota
+	sourceFile
+)
+
+// Source identifies a folder or file URL on github.com. The path after
+// /tree/ or /blob/ is kept as segments so branch names containing slashes can
+// be resolved.
 type Source struct {
 	Owner string
 	Repo  string
 	parts []string
 	raw   string
+	kind  sourceKind
 }
 
 func (s Source) Name() string {
@@ -40,7 +49,11 @@ func (s Source) URL() string {
 	return s.raw
 }
 
-// Result describes one successfully extracted source folder.
+func (s Source) isFile() bool {
+	return s.kind == sourceFile
+}
+
+// Result describes one successfully extracted source folder or file.
 type Result struct {
 	Target    string
 	FileCount int
@@ -77,7 +90,9 @@ func NewClient() *Client {
 	}
 }
 
-// ParseFolderURL validates a GitHub tree URL and keeps its repository path.
+// ParseFolderURL validates a GitHub tree or blob URL and keeps its repository
+// path. The name is retained for compatibility with callers that previously
+// accepted folder URLs only.
 func ParseFolderURL(raw string) (Source, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -102,14 +117,24 @@ func ParseFolderURL(raw string) (Source, error) {
 	if err != nil {
 		return Source{}, err
 	}
-	if len(parts) < 5 || parts[2] != "tree" {
-		return Source{}, errors.New("URL must point to a folder using /owner/repo/tree/ref/path")
+	if len(parts) < 5 {
+		return Source{}, errors.New("URL must point to a folder or file using /owner/repo/tree|blob/ref/path")
 	}
 	if parts[0] == "" || parts[1] == "" {
 		return Source{}, errors.New("URL is missing a repository owner or name")
 	}
 	if len(parts[3:]) < 2 {
-		return Source{}, errors.New("URL must include a folder path after the branch or tag")
+		return Source{}, errors.New("URL must include a folder or file path after the branch or tag")
+	}
+
+	var kind sourceKind
+	switch parts[2] {
+	case "tree":
+		kind = sourceFolder
+	case "blob":
+		kind = sourceFile
+	default:
+		return Source{}, errors.New("URL must point to a folder or file using /owner/repo/tree|blob/ref/path")
 	}
 
 	return Source{
@@ -117,6 +142,7 @@ func ParseFolderURL(raw string) (Source, error) {
 		Repo:  strings.TrimSuffix(parts[1], ".git"),
 		parts: parts[3:],
 		raw:   trimmed,
+		kind:  kind,
 	}, nil
 }
 
@@ -141,13 +167,13 @@ func pathSegments(rawPath string) ([]string, error) {
 	return parts, nil
 }
 
-// Download extracts the source folder into outputRoot/source.Name().
+// Download extracts the source folder or file into outputRoot/source.Name().
 func (c *Client) Download(ctx context.Context, source Source, outputRoot string, force bool) (Result, error) {
 	if c == nil || c.httpClient == nil {
 		return Result{}, errors.New("GitHub client is not configured")
 	}
 	if len(source.parts) < 2 {
-		return Result{}, errors.New("source URL does not include a folder path")
+		return Result{}, errors.New("source URL does not include a folder or file path")
 	}
 
 	root, err := filepath.Abs(outputRoot)
@@ -160,7 +186,7 @@ func (c *Client) Download(ctx context.Context, source Source, outputRoot string,
 
 	target := filepath.Join(root, source.Name())
 	if !isWithin(root, target) {
-		return Result{}, errors.New("source folder name would escape the output directory")
+		return Result{}, errors.New("source name would escape the output directory")
 	}
 	if _, err := os.Lstat(target); err == nil && !force {
 		return Result{}, fmt.Errorf("destination %q already exists (use --force to replace it)", target)
@@ -168,9 +194,19 @@ func (c *Client) Download(ctx context.Context, source Source, outputRoot string,
 		return Result{}, fmt.Errorf("inspect destination: %w", err)
 	}
 
-	entries, err := c.folderEntries(ctx, source)
-	if err != nil {
-		return Result{}, err
+	var entries []treeEntry
+	if source.isFile() {
+		entry, err := c.fileEntry(ctx, source)
+		if err != nil {
+			return Result{}, err
+		}
+		entry.Path = source.Name()
+		entries = []treeEntry{entry}
+	} else {
+		entries, err = c.folderEntries(ctx, source)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 
 	staging, err := os.MkdirTemp(root, "."+source.Name()+".tmp-")
@@ -189,7 +225,11 @@ func (c *Client) Download(ctx context.Context, source Source, outputRoot string,
 			return Result{}, fmt.Errorf("replace destination: %w", err)
 		}
 	}
-	if err := os.Rename(staging, target); err != nil {
+	stagedTarget := staging
+	if source.isFile() {
+		stagedTarget = filepath.Join(staging, source.Name())
+	}
+	if err := os.Rename(stagedTarget, target); err != nil {
 		return Result{}, fmt.Errorf("finalize destination: %w", err)
 	}
 
@@ -214,24 +254,15 @@ func (c *Client) folderEntries(ctx context.Context, source Source) ([]treeEntry,
 		return nil, err
 	}
 
-	var response treeResponse
-	endpoint := fmt.Sprintf(
-		"/repos/%s/%s/git/trees/%s?recursive=1",
-		url.PathEscape(source.Owner),
-		url.PathEscape(source.Repo),
-		url.PathEscape(commitSHA),
-	)
-	if err := c.getJSON(ctx, endpoint, &response); err != nil {
-		return nil, fmt.Errorf("read repository tree: %w", err)
-	}
-	if response.Truncated {
-		return nil, errors.New("GitHub returned a truncated repository tree; the folder is too large to copy safely")
+	tree, err := c.repositoryTree(ctx, source, commitSHA)
+	if err != nil {
+		return nil, err
 	}
 
 	prefix := folder + "/"
 	foundFolder := false
 	entries := make([]treeEntry, 0)
-	for _, entry := range response.Tree {
+	for _, entry := range tree {
 		if entry.Path == folder {
 			if entry.Type != "tree" {
 				return nil, fmt.Errorf("path %q is not a folder", folder)
@@ -257,6 +288,54 @@ func (c *Client) folderEntries(ctx context.Context, source Source) ([]treeEntry,
 
 	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
 	return entries, nil
+}
+
+func (c *Client) fileEntry(ctx context.Context, source Source) (treeEntry, error) {
+	_, file, commitSHA, err := c.resolveSource(ctx, source)
+	if err != nil {
+		return treeEntry{}, err
+	}
+
+	tree, err := c.repositoryTree(ctx, source, commitSHA)
+	if err != nil {
+		return treeEntry{}, err
+	}
+
+	for _, entry := range tree {
+		if entry.Path != file {
+			continue
+		}
+		switch entry.Type {
+		case "blob":
+			return entry, nil
+		case "tree":
+			return treeEntry{}, fmt.Errorf("path %q is not a file", file)
+		case "commit":
+			return treeEntry{}, fmt.Errorf("submodule %q is not supported", file)
+		default:
+			return treeEntry{}, fmt.Errorf("GitHub returned unsupported tree entry type %q for %q", entry.Type, file)
+		}
+	}
+
+	return treeEntry{}, fmt.Errorf("file %q was not found in the repository", file)
+}
+
+func (c *Client) repositoryTree(ctx context.Context, source Source, commitSHA string) ([]treeEntry, error) {
+
+	var response treeResponse
+	endpoint := fmt.Sprintf(
+		"/repos/%s/%s/git/trees/%s?recursive=1",
+		url.PathEscape(source.Owner),
+		url.PathEscape(source.Repo),
+		url.PathEscape(commitSHA),
+	)
+	if err := c.getJSON(ctx, endpoint, &response); err != nil {
+		return nil, fmt.Errorf("read repository tree: %w", err)
+	}
+	if response.Truncated {
+		return nil, errors.New("GitHub returned a truncated repository tree; the source is too large to copy safely")
+	}
+	return response.Tree, nil
 }
 
 func (c *Client) resolveSource(ctx context.Context, source Source) (string, string, string, error) {

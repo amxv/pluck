@@ -1,8 +1,8 @@
 export const siteConfig = {
   name: "pluck",
-  strapline: "Bring any GitHub folder home",
+  strapline: "Bring any GitHub folder or file home",
   description:
-    "A small Go CLI for copying folders from GitHub tree URLs into a local directory.",
+    "A small Go CLI for copying folders or files from GitHub URLs into a local directory.",
   repoUrl: "https://github.com/amxv/pluck",
   accentColor: "#b7f34a",
   accentColorDark: "#d7ff80",
@@ -10,7 +10,7 @@ export const siteConfig = {
     {
       title: "pluck",
       text:
-        "A focused command for turning a GitHub folder URL into a local folder, with native binaries and a tiny npm wrapper."
+        "A focused command for turning a GitHub folder or file URL into local files, with native binaries and a tiny npm wrapper."
     },
     {
       title: "What this site covers",
