@@ -27,7 +27,16 @@ func TestRunRootHelp(t *testing.T) {
 		t.Fatalf("Run returned error: %v", err)
 	}
 
-	for _, expected := range []string{"Usage:", "github-url", "--output", "--force", "--version", "blob"} {
+	for _, expected := range []string{
+		"Usage:",
+		"github-url",
+		"--output",
+		"default: /tmp/",
+		"/tmp/<source-name>",
+		"--force",
+		"--version",
+		"blob",
+	} {
 		if !strings.Contains(out.String(), expected) {
 			t.Fatalf("expected %q in help output, got: %q", expected, out.String())
 		}
