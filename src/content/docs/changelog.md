@@ -6,6 +6,15 @@ category: Distribution
 summary: Version history for the GitHub folder downloader.
 ---
 
+## 0.2.0 - 2026-08-03
+
+- Copy individual files from GitHub blob URLs directly into the chosen output
+  directory, preserving executable modes.
+- Resolve file refs using the repository tree, support branch names containing
+  slashes, and stage file replacements safely with `--force`.
+- Update the CLI help, package metadata, and usage guides for folder and file
+  sources.
+
 ## 0.1.0 - 2026-08-03
 
 - Initial release.
