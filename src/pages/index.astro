@@ -1,0 +1,167 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "zuedocs/layouts/BaseLayout.astro";
+import { primaryNav, siteConfig } from "../data/docs";
+
+const docs = (await getCollection("docs")).sort((a, b) => a.data.order - b.data.order);
+
+const proofPoints = [
+  {
+    index: "01",
+    title: "URL in, folder out",
+    body: "Paste a GitHub tree URL and get the folder, its nested files, and its executable bits on disk."
+  },
+  {
+    index: "02",
+    title: "The path is yours",
+    body: "Use /tmp by default or point at a project directory. Multiple URLs can land in one clean batch."
+  },
+  {
+    index: "03",
+    title: "Private by permission",
+    body: "Public repos work immediately. Private repos use GH_TOKEN, GITHUB_TOKEN, or your active gh login."
+  },
+  {
+    index: "04",
+    title: "Small enough to trust",
+    body: "A focused Go binary, a thin npm wrapper, and no checkout to clean up when the files arrive."
+  }
+];
+
+const workflows = [
+  "Copy a skill, example, or config folder from a repository without cloning the whole thing.",
+  "Drop shared conventions into /tmp while exploring a codebase or preparing an agent session.",
+  "Choose a destination root and let pluck preserve the source folder name for you.",
+  "Install once with npm, then keep the terminal command close at hand."
+];
+---
+
+<BaseLayout
+  title={`${siteConfig.name} | ${siteConfig.strapline}`}
+  description={siteConfig.description}
+  siteConfig={siteConfig}
+  primaryNav={primaryNav}
+>
+  <section class="hero shell">
+    <div class="hero__copy">
+      <p class="section-label">A tiny GitHub extraction tool</p>
+      <h1>GitHub gave you a URL. <em>pluck</em> gives you the folder.</h1>
+      <p class="hero__lede">
+        Copy any folder from a GitHub tree URL into a local directory. No full clone,
+        no temporary archive, no ceremony between “I found it” and “it is here.”
+      </p>
+      <div class="hero__url-line">
+        <span class="hero__url-dot"></span>
+        <code>github.com/owner/repo/tree/ref/path</code>
+      </div>
+      <div class="hero__actions">
+        <a class="button button--solid" href="/docs/quickstart">Copy your first folder</a>
+        <a class="button button--ghost" href="/docs/command-reference">See the command</a>
+      </div>
+    </div>
+    <aside class="hero__panel">
+      <div class="hero__panel-head">
+        <p class="hero__panel-label">Terminal / ready</p>
+        <span class="hero__status"><i></i> online</span>
+      </div>
+      <div class="hero__terminal">
+        <span class="terminal__prompt">$</span>
+        <span>pluck https://github.com/</span>
+        <span>vercel-labs/agent-skills/tree/main/</span>
+        <span>skills/composition-patterns</span>
+        <span class="terminal__result">→ /tmp/composition-patterns</span>
+      </div>
+      <div class="hero__panel-foot">
+        <span>default destination</span>
+        <strong>/tmp</strong>
+      </div>
+    </aside>
+  </section>
+
+  <section class="shell section-grid">
+    <div class="section-heading">
+      <p class="section-label">Why pluck exists</p>
+      <h2>The shortest path from a useful link to usable local context.</h2>
+      <p>
+        Repositories are full of folders worth borrowing: skills, rules, examples, presets,
+        and tiny bits of configuration. pluck keeps the operation proportional to the thing
+        you actually wanted.
+      </p>
+    </div>
+    <div class="proof-grid">
+      {proofPoints.map((item) => (
+        <article class="proof-card">
+          <span class="proof-card__index">{item.index}</span>
+          <h3>{item.title}</h3>
+          <p>{item.body}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="shell split-section">
+    <div>
+      <p class="section-label">Good for</p>
+      <h2>Borrow the useful piece. Leave the rest of the repository alone.</h2>
+    </div>
+    <div class="stack-list">
+      {workflows.map((item, index) => (
+        <article class="stack-list__item">
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <p>{item}</p>
+        </article>
+      ))}
+    </div>
+  </section>
+
+  <section class="shell capability-band">
+    <div class="capability-band__intro">
+      <p class="section-label">Under the hood</p>
+      <h2>One command. A deliberate little surface.</h2>
+    </div>
+    <div class="capability-band__grid">
+      <div>
+        <p class="capability-title">GitHub API</p>
+        <p>Tree and blob requests keep the download focused on the folder you named.</p>
+      </div>
+      <div>
+        <p class="capability-title">Safe extraction</p>
+        <p>Staged writes, guarded paths, and an explicit --force before replacing a destination.</p>
+      </div>
+      <div>
+        <p class="capability-title">Native binary</p>
+        <p>Go builds for macOS, Linux, and Windows, with npm as the convenient install path.</p>
+      </div>
+      <div>
+        <p class="capability-title">Private repos</p>
+        <p>Use a scoped token in CI or let the local GitHub CLI account do the authentication.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="shell docs-teaser">
+    <div class="section-heading">
+      <p class="section-label">Field notes</p>
+      <h2>Start with one command. Keep the rest nearby when you need it.</h2>
+      <p>
+        The docs cover the basic copy, output layout, GitHub access, release path, and the small
+        Astro site that keeps this tool understandable.
+      </p>
+    </div>
+    <div class="docs-teaser__grid">
+      {docs.map((entry) => (
+        <a class="docs-teaser__card" href={`/docs/${entry.id}`}>
+          <span>{entry.data.category}</span>
+          <h3>{entry.data.title}</h3>
+          <p>{entry.data.summary ?? entry.data.description}</p>
+          <b>Read note <span>↗</span></b>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="shell closing-note">
+    <p><span>pluck</span> the useful bit and get back to the work.</p>
+    <a href="/docs/quickstart">Get started <span>→</span></a>
+  </section>
+</BaseLayout>
