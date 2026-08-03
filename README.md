@@ -2,7 +2,7 @@
 
 Copy a folder or file from a GitHub repository into a local directory.
 
-Read the guides at [pluck-delta.vercel.app](https://pluck-delta.vercel.app).
+Read the guides at [pluck.ashray.xyz](https://pluck.ashray.xyz).
 
 `pluck` accepts GitHub tree and blob URLs, downloads the requested source through
 the GitHub API, and writes it to `/tmp` by default. Private repositories work through
