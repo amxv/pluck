@@ -51,3 +51,7 @@ Release tags use the form `v*`. The workflow builds assets named
 `pluck_<goos>_<goarch>[.exe]`, creates a GitHub release, and publishes the npm
 package. Keep the binary name, package metadata, postinstall script, and
 workflow environment in sync.
+
+### Docs deployment
+
+The Docs GitHub Actions workflow deploys production only for the watched site paths; Vercel Git auto-deployments and `ignoreCommand` stay disabled. Keep the project-scoped `VERCEL_TOKEN` Actions secret and ID variables configured. Check Astro locally; builds run in CI.
